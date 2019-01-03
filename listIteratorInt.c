@@ -10,14 +10,14 @@
 #include <assert.h>
 #include "listIteratorInt.h"
 
-
+// double linked list node
 typedef struct Node {
     int value;
     struct Node *prev;
     struct Node *next;
 } Node;
 
-
+// double linked list iterator with last call node
 typedef struct IteratorIntRep {
     int size;
     Node *head;
@@ -25,27 +25,29 @@ typedef struct IteratorIntRep {
     Node *nextNode;
     Node *prevNode;
 
-    Node *tail;
+    Node *lastCall;
 } IteratorIntRep;
 
-
+// create new iterator
 IteratorInt IteratorIntNew() {
     struct IteratorIntRep *iter = malloc(sizeof(struct IteratorIntRep));
     assert(iter != NULL);
     iter->size = 0;
     iter->head = NULL;
-    iter->tail = NULL;
+    iter->lastCall = NULL;
     iter->nextNode = NULL;
     iter->prevNode = NULL;
     return iter;
 }
 
-
+// reset iterator
 void reset(IteratorInt iter) {
     iter->prevNode = NULL;
     iter->nextNode = iter->head;
+	iter->lastCall = NULL;
 }
 
+// add node
 int add(IteratorInt iter, int v) {
 
     if (iter == NULL) {
@@ -58,16 +60,16 @@ int add(IteratorInt iter, int v) {
     }
     tmp->value = v;
     tmp->prev = tmp->next = NULL;
-    assert(tmp != NULL);
 
 
     if (iter->head == NULL) {
         iter->head = tmp;
-        iter->tail = tmp;
         iter->prevNode = tmp;
         iter->size++;
         return 1;
-    } else if (hasPrevious(iter) == 0 && hasNext(iter) == 1) {
+    } 
+	// insert at head
+	else if (hasPrevious(iter) == 0 && hasNext(iter) == 1) {
         iter->head = tmp;
         iter->nextNode->prev = tmp;
         tmp->next = iter->nextNode;
@@ -76,34 +78,33 @@ int add(IteratorInt iter, int v) {
         return 1;
 
     }
-
+	// insert at tail
     else if (hasNext(iter) == 0 && hasPrevious(iter) == 1) {
 
         iter->prevNode->next = tmp;
         tmp->prev = iter->prevNode;
         iter->prevNode = tmp;
-        iter->tail=tmp;
         iter->size++;
         return 1;
     }
-
+	// insert at middle
     else {
-        // link the tmp node to where cursor currently is (which is prevNode->next)
         iter->prevNode->next = tmp;
         tmp->prev = iter->prevNode;
-        // link the existing nodes after cursor to the tmp node and redefine cursor position
         iter->nextNode->prev = tmp;
         tmp->next = iter->nextNode;
         iter->prevNode = tmp;
-        iter->size++;                //showLL(iter->head);
+        iter->size++;               
         return 1;
     }
     return 0;
 }
 
-// Check if there are any elements in the forward direction
+// check if iter has next
 int hasNext(IteratorInt iter) {
-    assert(iter != NULL);
+	if (iter == NULL) {
+		return 0;
+	}
     if (iter->nextNode != NULL) {
         return 1;
     } else {
@@ -111,9 +112,11 @@ int hasNext(IteratorInt iter) {
     }
 }
 
-// Check if there are any elements in the previous direction.
+// check if iter has prev
 int hasPrevious(IteratorInt iter) {
-    assert(iter != NULL);
+	if (iter == NULL) {
+		return 0;
+	}
     if (iter->prevNode != NULL) {
         return 1;
     } else {
@@ -121,174 +124,148 @@ int hasPrevious(IteratorInt iter) {
     }
 }
 
-// Move the cursor to the next position and return the pointer to the element iter went passed by
+// get the next
 int *next(IteratorInt iter) {
-    assert(iter != NULL);
-    // If there is next value
-    if (hasNext(iter) == 1) {
-        // Move to next value by moving the cursor position
+	if (iter == NULL) {
+		return NULL;
+	}
+	// has next node
+    if (hasNext(iter)) {
         iter->prevNode = iter->nextNode;
         iter->nextNode = iter->nextNode->next;
-
-        // Update tail called value
-        iter->tail = iter->prevNode;
-
-        int *p = &(iter->tail->value);
-        return p;
+        iter->lastCall = iter->prevNode;
+        return &(iter->lastCall->value);
     } else {
-        iter->tail = NULL;
+        iter->lastCall = NULL;
         return NULL;
     }
 }
 
-// Move the cursor in backward direction and return the pointer to the element iter went passed by.
+// get the previous
 int *previous(IteratorInt iter) {
-    assert(iter != NULL);
-    if (hasPrevious(iter) == 1) {
-        // Move the cursor position forward
+	if (iter == NULL) {
+		return NULL;
+	}
+    if (hasPrevious(iter)) {
         iter->nextNode = iter->prevNode;
         iter->prevNode = iter->prevNode->prev;
-
-        // Update tail called value
-        iter->tail = iter->nextNode;
-
-        int *p = &(iter->tail->value);
-        return p;
+        iter->lastCall = iter->nextNode;
+        return &(iter->lastCall->value);
     } else {
-        iter->tail = NULL;
+        iter->lastCall = NULL;
         return NULL;
     }
 }
 
-// Delete the tail called element that was returned by next or previous or findNext or findPrevious.
+// delete the last call node
 int deleteElm(IteratorInt iter) {
-    //If there is no tail called, return 0. Hence, precondition not met
-    if (iter->tail == NULL) {
+    // precondition fail
+    if (iter->lastCall == NULL) {
         return 0;
     }
-    //showLL(iter->head);
-    // If the tail called element is not the head, we need to traverse through the list and find the tail called
-    if (iter->tail != iter->head) {
-        Node *current = iter->head;    // set current to head and start moving
-        while (current != NULL && current != iter->tail) {
-            current = current->next;
-        }
-        // If somwhere in the middle of the list
-        if (current->next != NULL) {
-            current->prev->next = current->next;
-            current->next->prev = current->prev;
+    // not head
+    if (iter->lastCall != iter->head) {
+        // not end
+        if (iter->lastCall->next != NULL) {
+			iter->lastCall->prev->next = iter->lastCall->next;
+			iter->lastCall->next->prev = iter->lastCall->prev;
         } else {
-            // If at end of the list
-            current->prev->next = NULL;
+			iter->lastCall->prev->next = NULL;
         }
     }
-        // Otherwise, iter is at head we we need to assign tmp head, remove link as well
+	// head
     else {
-        // If deleting only element, reset everything
+        // only one head
         if (iter->head->next == NULL) {
             iter->head = NULL;
-            iter->tail = NULL;
+            iter->lastCall = NULL;
             iter->prevNode = NULL;
             iter->nextNode = NULL;
-            free(iter->tail);
+            free(iter->lastCall);
             iter->size--;
             return 1;
         }
-        // Make the next element the head and remove its link
+        // change the head
         iter->head = iter->head->next;
         iter->head->prev = NULL;
     }
-    // Adjust the cursor accordingly. If the element we are deleting is currently defining the cursor, we need to change the cursor.
-    if (iter->tail == iter->prevNode) {
+    
+    if (iter->lastCall == iter->prevNode) {
         iter->prevNode = iter->prevNode->prev;
-    } else if (iter->tail == iter->nextNode) {
+    } else if (iter->lastCall == iter->nextNode) {
         iter->nextNode = iter->nextNode->next;
     }
-    iter->tail = NULL;
-    free(iter->tail);
-    iter->size--;                   //showLL(iter->head);
+    iter->lastCall = NULL;
+    free(iter->lastCall);
+    iter->size--;                   
     return 1;
 }
 
-// Replace the tail element returned by next or previous or findNext or findPrevious with the specfied element v
 int set(IteratorInt iter, int v) {
-    // if precondition not met
-    if (iter->tail == NULL) {
+    // precondition fail
+    if (iter->lastCall == NULL) {
         return 0;
     }
-    // Move through the list until we find tail called element
-    Node *current = iter->head;
-    while (current != NULL && current != iter->tail) {
-        current = current->next;
-    }
-    // Set the value to v
-    current->value = v;
-    // Set tail to Null as set/delete must be immediately followed by either next, previous, findNext or findPrevious
-    iter->tail = NULL;
-    //showLL(iter->head);
+    // set value
+	iter->lastCall->value = v;
+    // clear last call
+    iter->lastCall = NULL;
     return 1;
 
 }
 
-// Returns pointer to the next value in iter that matches the given value v and advances the cursor position past the value returned
+// find the next node whose value is v
 int *findNext(IteratorInt iter, int v) {
-    // Traverse through the list from current cursor position until we reach a node with the value v
-    Node *current = iter->nextNode;
-    while (current != NULL && current->value != v) {
-        current = current->next;
+
+    Node *cur = iter->nextNode;
+    while (cur != NULL && cur->value != v) {
+        cur = cur->next;
     }
-    // If we moved through the list without finding an element that matched
-    if (current == NULL) {
-        iter->tail = NULL;
+    // not found
+    if (cur == NULL) {
+        iter->lastCall = NULL;
         return NULL;
     }
 
-    // Initialize pointer variable to point to the next value in the list that matches the given value v to be returned
-    int *p = &(current->value);
+    // found the node
+    iter->prevNode = cur;
+    iter->nextNode = cur->next;
+    iter->lastCall = cur;
 
-    // When value is found, we want to move our cursor to behind iter.
-    iter->prevNode = current;
-    iter->nextNode = current->next;
-    // Set tail called value
-    iter->tail = current;
-
-    return p;
+    return &(cur->value);
 }
 
-// Works similarly as findNext but in reverse direction
+// find the previous node whose value is v
 int *findPrevious(IteratorInt iter, int v) {
-    Node *current = iter->prevNode;
-    while (current != NULL && current->value != v) {
-        current = current->prev;
+    Node *cur = iter->prevNode;
+    while (cur != NULL && cur->value != v) {
+        cur = cur->prev;
     }
-    if (current == NULL) {
-        iter->tail = NULL;
+	// not found
+    if (cur == NULL) {
+        iter->lastCall = NULL;
         return NULL;
     }
+	// found the node
+    iter->nextNode = cur;
+    iter->prevNode = cur->prev;
+    iter->lastCall = cur;
 
-    int *p = &(current->value);
-    iter->nextNode = current;
-    iter->prevNode = current->prev;
-    iter->tail = current;
-
-    return p;
+    return &(cur->value);
 }
 
-// Deletes all nodes in iter and free associated memory
+// free memory
 void freeIt(IteratorInt iter) {
-
-
     if(iter == NULL){
         return;
     }
-    Node *curr, *prev;
-    curr = iter->head;
-    while (curr != NULL) {
-        prev = curr;
-        curr = curr->next;
-        free(prev);
-    }
-    free(curr);
+    Node *cur;
+    cur = iter->head;
+	while (cur != NULL) {
+		iter->head = cur->next;
+		free(cur);
+		cur = iter->head;
+	}
     free(iter);
 
 }
